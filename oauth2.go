@@ -59,6 +59,10 @@ type Config struct {
 	// Scope specifies optional requested permissions.
 	Scopes []string
 
+	// Skip the Query Escape when adding the client id and secret to the header
+	// to fix a common bug in other api servers
+	SkipQueryEscape bool
+
 	// authStyleCache caches which auth style to use when Endpoint.AuthStyle is
 	// the zero value (AuthStyleAutoDetect).
 	authStyleCache internal.LazyAuthStyleCache

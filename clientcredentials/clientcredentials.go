@@ -48,6 +48,10 @@ type Config struct {
 	// auto-detect.
 	AuthStyle oauth2.AuthStyle
 
+	// Skip the Query Escape when adding the client id and secret to the header
+	// to fix a common bug in other api servers
+	SkipQueryEscape bool
+
 	// authStyleCache caches which auth style to use when Endpoint.AuthStyle is
 	// the zero value (AuthStyleAutoDetect).
 	authStyleCache internal.LazyAuthStyleCache
@@ -107,7 +111,7 @@ func (c *tokenSource) Token() (*oauth2.Token, error) {
 		v[k] = p
 	}
 
-	tk, err := internal.RetrieveToken(c.ctx, c.conf.ClientID, c.conf.ClientSecret, c.conf.TokenURL, v, internal.AuthStyle(c.conf.AuthStyle), false, c.conf.authStyleCache.Get())
+	tk, err := internal.RetrieveToken(c.ctx, c.conf.ClientID, c.conf.ClientSecret, c.conf.TokenURL, v, internal.AuthStyle(c.conf.AuthStyle), c.conf.SkipQueryEscape, c.conf.authStyleCache.Get())
 	if err != nil {
 		if rErr, ok := err.(*internal.RetrieveError); ok {
 			return nil, (*oauth2.RetrieveError)(rErr)
