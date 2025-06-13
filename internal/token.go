@@ -183,7 +183,7 @@ func (c *AuthStyleCache) setAuthStyle(tokenURL, clientID string, v AuthStyle) {
 // as the POST body. An 'inParams' value of true means to send it in
 // the POST body (along with any values in v); false means to send it
 // in the Authorization header.
-func newTokenRequest(tokenURL, clientID, clientSecret string, v url.Values, authStyle AuthStyle, skipQueryEscape bool) (*http.Request, error) {
+func newTokenRequest(tokenURL, clientID, clientSecret string, v url.Values, header http.Header, authStyle AuthStyle, skipQueryEscape bool) (*http.Request, error) {
 	if authStyle == AuthStyleInParams {
 		v = cloneURLValues(v)
 		if clientID != "" {
@@ -196,6 +196,9 @@ func newTokenRequest(tokenURL, clientID, clientSecret string, v url.Values, auth
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, err
+	}
+	if header != nil {
+		req.Header = header
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if authStyle == AuthStyleInHeader {
@@ -216,7 +219,7 @@ func cloneURLValues(v url.Values) url.Values {
 	return v2
 }
 
-func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string, v url.Values, authStyle AuthStyle, skipQueryEscape bool, styleCache *AuthStyleCache) (*Token, error) {
+func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string, v url.Values, h http.Header, authStyle AuthStyle, skipQueryEscape bool, styleCache *AuthStyleCache) (*Token, error) {
 	needsAuthStyleProbe := authStyle == AuthStyleUnknown
 	if needsAuthStyleProbe {
 		if style, ok := styleCache.lookupAuthStyle(tokenURL, clientID); ok {
@@ -226,7 +229,7 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 			authStyle = AuthStyleInHeader // the first way we'll try
 		}
 	}
-	req, err := newTokenRequest(tokenURL, clientID, clientSecret, v, authStyle, skipQueryEscape)
+	req, err := newTokenRequest(tokenURL, clientID, clientSecret, v, h, authStyle, skipQueryEscape)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +248,7 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 		// they went, but maintaining it didn't scale & got annoying.
 		// So just try both ways.
 		authStyle = AuthStyleInParams // the second way we'll try
-		req, _ = newTokenRequest(tokenURL, clientID, clientSecret, v, authStyle, skipQueryEscape)
+		req, _ = newTokenRequest(tokenURL, clientID, clientSecret, v, h, authStyle, skipQueryEscape)
 		token, err = doTokenRoundTrip(ctx, req)
 	}
 	if needsAuthStyleProbe && err == nil {
