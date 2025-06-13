@@ -40,6 +40,9 @@ type Config struct {
 	// Scope specifies optional requested permissions.
 	Scopes []string
 
+	// Header specifies the header for the token request
+	Header http.Header
+
 	// EndpointParams specifies additional parameters for requests to the token endpoint.
 	EndpointParams url.Values
 
@@ -111,7 +114,7 @@ func (c *tokenSource) Token() (*oauth2.Token, error) {
 		v[k] = p
 	}
 
-	tk, err := internal.RetrieveToken(c.ctx, c.conf.ClientID, c.conf.ClientSecret, c.conf.TokenURL, v, internal.AuthStyle(c.conf.AuthStyle), c.conf.SkipQueryEscape, c.conf.authStyleCache.Get())
+	tk, err := internal.RetrieveToken(c.ctx, c.conf.ClientID, c.conf.ClientSecret, c.conf.TokenURL, v, c.conf.Header, internal.AuthStyle(c.conf.AuthStyle), c.conf.SkipQueryEscape, c.conf.authStyleCache.Get())
 	if err != nil {
 		if rErr, ok := err.(*internal.RetrieveError); ok {
 			return nil, (*oauth2.RetrieveError)(rErr)

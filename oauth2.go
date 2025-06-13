@@ -59,6 +59,9 @@ type Config struct {
 	// Scope specifies optional requested permissions.
 	Scopes []string
 
+	// Header specifies optional request header
+	Header http.Header
+
 	// Skip the Query Escape when adding the client id and secret to the header
 	// to fix a common bug in other api servers
 	SkipQueryEscape bool
