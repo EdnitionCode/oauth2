@@ -15,6 +15,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -216,6 +217,77 @@ func cloneURLValues(v url.Values) url.Values {
 	return v2
 }
 
+// RequestToCurl converts an http.Request to a curl command string
+func RequestToCurl(req *http.Request) string {
+	var parts []string
+
+	// Start with curl command
+	parts = append(parts, "curl")
+
+	// Add method if not GET
+	if req.Method != "" && req.Method != "GET" {
+		parts = append(parts, "-X", req.Method)
+	}
+
+	// Add headers
+	var headerKeys []string
+	for key := range req.Header {
+		headerKeys = append(headerKeys, key)
+	}
+	sort.Strings(headerKeys) // Sort for consistent output
+
+	for _, key := range headerKeys {
+		for _, value := range req.Header[key] {
+			parts = append(parts, "-H", fmt.Sprintf("'%s: %s'", key, value))
+		}
+	}
+
+	// Add body if present (preserves original body)
+	if req.Body != nil {
+		body, err := io.ReadAll(req.Body)
+		if err == nil && len(body) > 0 {
+			parts = append(parts, "-d", fmt.Sprintf("'%s'", string(body)))
+			// Restore the body for further use
+			req.Body = io.NopCloser(strings.NewReader(string(body)))
+		}
+	}
+
+	// Build the URL
+	u := &url.URL{
+		Scheme: req.URL.Scheme,
+		Host:   req.URL.Host,
+		Path:   req.URL.Path,
+	}
+
+	// If scheme or host is missing, try to get from request
+	if u.Scheme == "" {
+		if req.TLS != nil {
+			u.Scheme = "https"
+		} else {
+			u.Scheme = "http"
+		}
+	}
+
+	if u.Host == "" {
+		u.Host = req.Host
+	}
+
+	// Add query parameters
+	if req.URL.RawQuery != "" {
+		u.RawQuery = req.URL.RawQuery
+	}
+
+	// Add the URL (quoted to handle special characters)
+	parts = append(parts, fmt.Sprintf("'%s'", u.String()))
+
+	return strings.Join(parts, " ")
+}
+
+// PrintRequestAsCurl prints the curl command for an http.Request
+func PrintRequestAsCurl(req *http.Request) {
+	fmt.Println(RequestToCurl(req))
+}
+
 func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string, v url.Values, h http.Header, authStyle AuthStyle, skipQueryEscape bool, styleCache *AuthStyleCache) (*Token, error) {
 	needsAuthStyleProbe := authStyle == 0
 	if needsAuthStyleProbe {
@@ -227,6 +299,7 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 		}
 	}
 	req, err := newTokenRequest(tokenURL, clientID, clientSecret, v, h, authStyle, skipQueryEscape)
+	PrintRequestAsCurl(req)
 	if err != nil {
 		return nil, err
 	}
